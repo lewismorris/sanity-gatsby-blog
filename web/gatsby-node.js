@@ -44,33 +44,38 @@ async function createBlogPostPages(graphql, actions) {
     });
 }
 
-// async function createCategoryPages(graphql, actions) {
-//   const { createPages } = actions;
-//   const result = await graphql(`
-//     {
-//       allSanityCategory {
-//         nodes {
-//           posts {
-//             _id
-//             title
-//           }
-//           _id
-//           description
-//           title
-//           slug {
-//             current
-//           }
-//         }
-//       }
-//     }
-//   `);
+async function createCategoryPages(graphql, actions) {
+  const { createPage } = actions;
+  const result = await graphql(`
+    {
+      allSanityCategory {
+        edges {
+          node {
+            id
+            slug {
+              current
+            }
+          }
+        }
+      }
+    }
+  `);
 
-//   if (result.errors) throw result.errors;
+  if (result.errors) throw result.errors;
 
-//   const categoryEdges = results.data.allSanityCategory;
+  const categoryEdges = result.data.allSanityCategory.edges;
 
-//   console.log(categoryEdges);
-// }
+  categoryEdges.forEach((edge, index) => {
+    const { id, slug } = edge.node;
+    const path = `category/${slug.current}/`;
+
+    createPage({
+      path,
+      component: require.resolve("./src/templates/category.js"),
+      context: { id },
+    });
+  });
+}
 
 exports.createResolvers = ({ createResolvers }) => {
   const resolvers = {
@@ -101,5 +106,5 @@ exports.createResolvers = ({ createResolvers }) => {
 
 exports.createPages = async ({ graphql, actions }) => {
   await createBlogPostPages(graphql, actions);
-  // await createCategoryPages(graphql, actions);
+  await createCategoryPages(graphql, actions);
 };
