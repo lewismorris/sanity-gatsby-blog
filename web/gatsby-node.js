@@ -1,19 +1,17 @@
-const {isFuture} = require('date-fns')
+const { isFuture } = require("date-fns");
 /**
  * Implement Gatsby's Node APIs in this file.
  *
  * See: https://www.gatsbyjs.org/docs/node-apis/
  */
 
-const {format} = require('date-fns')
+const { format } = require("date-fns");
 
-async function createBlogPostPages (graphql, actions) {
-  const {createPage} = actions
+async function createBlogPostPages(graphql, actions) {
+  const { createPage } = actions;
   const result = await graphql(`
     {
-      allSanityPost(
-        filter: { slug: { current: { ne: null } }, publishedAt: { ne: null } }
-      ) {
+      allSanityPost(filter: { slug: { current: { ne: null } }, publishedAt: { ne: null } }) {
         edges {
           node {
             id
@@ -25,27 +23,83 @@ async function createBlogPostPages (graphql, actions) {
         }
       }
     }
-  `)
+  `);
 
-  if (result.errors) throw result.errors
+  if (result.errors) throw result.errors;
 
-  const postEdges = (result.data.allSanityPost || {}).edges || []
+  const postEdges = (result.data.allSanityPost || {}).edges || [];
 
   postEdges
-    .filter(edge => !isFuture(edge.node.publishedAt))
+    .filter((edge) => !isFuture(edge.node.publishedAt))
     .forEach((edge, index) => {
-      const {id, slug = {}, publishedAt} = edge.node
-      const dateSegment = format(publishedAt, 'YYYY/MM')
-      const path = `/blog/${dateSegment}/${slug.current}/`
+      const { id, slug = {}, publishedAt } = edge.node;
+      const dateSegment = format(publishedAt, "YYYY/MM");
+      const path = `/blog/${dateSegment}/${slug.current}/`;
 
       createPage({
         path,
-        component: require.resolve('./src/templates/blog-post.js'),
-        context: {id}
-      })
-    })
+        component: require.resolve("./src/templates/blog-post.js"),
+        context: { id },
+      });
+    });
 }
 
-exports.createPages = async ({graphql, actions}) => {
-  await createBlogPostPages(graphql, actions)
-}
+// async function createCategoryPages(graphql, actions) {
+//   const { createPages } = actions;
+//   const result = await graphql(`
+//     {
+//       allSanityCategory {
+//         nodes {
+//           posts {
+//             _id
+//             title
+//           }
+//           _id
+//           description
+//           title
+//           slug {
+//             current
+//           }
+//         }
+//       }
+//     }
+//   `);
+
+//   if (result.errors) throw result.errors;
+
+//   const categoryEdges = results.data.allSanityCategory;
+
+//   console.log(categoryEdges);
+// }
+
+exports.createResolvers = ({ createResolvers }) => {
+  const resolvers = {
+    SanityCategory: {
+      posts: {
+        type: ["SanityPost"],
+        resolve(source, args, context, info) {
+          return context.nodeModel.runQuery({
+            type: "SanityPost",
+            query: {
+              filter: {
+                categories: {
+                  elemMatch: {
+                    _id: {
+                      eq: source._id,
+                    },
+                  },
+                },
+              },
+            },
+          });
+        },
+      },
+    },
+  };
+  createResolvers(resolvers);
+};
+
+exports.createPages = async ({ graphql, actions }) => {
+  await createBlogPostPages(graphql, actions);
+  // await createCategoryPages(graphql, actions);
+};
